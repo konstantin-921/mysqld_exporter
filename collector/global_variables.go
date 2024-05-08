@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -137,6 +138,27 @@ func (ScrapeGlobalVariables) Version() float64 {
 	return 5.1
 }
 
+// Convert gtid entries like this: "65c1a943-f809-11ee-bbe8-d7741a3a5c0e:1-63424,\n69948635-f8d2-11ee-aa51-ab063bdb23af:1-63321"
+// to map like this: map[65c1a943_f809_11ee_bbe8_d7741a3a5c0e:63424 69948635_f8d2_11ee_aa51_ab063bdb23af:63321]
+func parseGtidExecuted(v sql.RawBytes, logger log.Logger) map[string]float64 {
+	var gtidMap = make(map[string]float64)
+	entries := strings.Split(string(v), ",\n")
+
+	for _, e := range entries {
+		parts := strings.Split(e, ":")
+		valuePart := strings.Split(parts[1], "-")
+		gtidEnd, err := strconv.ParseFloat(valuePart[1], 64)
+		if err != nil {
+			level.Error(logger).Log("msg", "Error parsing GTID variables", "err", err)
+		}
+		keyPart := strings.Replace("gtid_executed_"+parts[0], "-", "_", -1)
+		gtidMap[keyPart] = gtidEnd
+	}
+
+	return gtidMap
+
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	globalVariablesRows, err := db.QueryContext(ctx, globalVariablesQuery)
@@ -163,6 +185,24 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 		}
 
 		key = validPrometheusName(key)
+
+		if key == "gtid_executed" {
+			gtidMap := parseGtidExecuted(val, logger)
+
+			for k, v := range gtidMap {
+				help := globalVariablesHelp[k]
+				if help == "" {
+					help = "Generic gauge metric from SHOW GLOBAL VARIABLES."
+				}
+				ch <- prometheus.MustNewConstMetric(
+					newDesc(globalVariables, k, help),
+					prometheus.GaugeValue,
+					v,
+				)
+				continue
+			}
+		}
+
 		if floatVal, ok := parseStatus(val); ok {
 			help := globalVariablesHelp[key]
 			if help == "" {
