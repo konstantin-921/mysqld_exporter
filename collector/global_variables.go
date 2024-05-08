@@ -151,7 +151,7 @@ func parseGtidExecuted(v sql.RawBytes, logger log.Logger) map[string]float64 {
 		if err != nil {
 			level.Error(logger).Log("msg", "Error parsing GTID variables", "err", err)
 		}
-		keyPart := strings.Replace("gtid_executed_"+parts[0], "-", "_", -1)
+		keyPart := strings.Replace("custom_gtid_executed_"+parts[0], "-", "_", -1)
 		gtidMap[keyPart] = gtidEnd
 	}
 

@@ -27,6 +27,7 @@ NOTE: It is recommended to set a max connection limit for the user to avoid over
 ### Build
 
     make build
+    tar -czf mysqld_exporter-<VERSION>.linux-amd64.tar.gz mysqld_exporter
 
 ### Running
 
