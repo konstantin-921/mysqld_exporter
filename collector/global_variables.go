@@ -147,7 +147,7 @@ func parseGtidExecuted(v sql.RawBytes, logger log.Logger) map[string]float64 {
 	for _, e := range entries {
 		parts := strings.Split(e, ":")
 		valuePart := strings.Split(parts[1], "-")
-		gtidEnd, err := strconv.ParseFloat(valuePart[1], 64)
+		gtidEnd, err := strconv.ParseFloat(valuePart[len(valuePart)-1], 64)
 		if err != nil {
 			level.Error(logger).Log("msg", "Error parsing GTID variables", "err", err)
 		}
