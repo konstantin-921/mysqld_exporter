@@ -187,6 +187,13 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 		key = validPrometheusName(key)
 
 		if key == "gtid_executed" {
+
+			// Check if val exists (is not nil or empty)
+			if val == nil || len(val) == 0 {
+				level.Warn(logger).Log("msg", "Value does not exist, skipping processing", "key", key)
+				continue // Skip this iteration and move to the next row
+			}
+
 			gtidMap := parseGtidExecuted(val, logger)
 
 			for k, v := range gtidMap {
